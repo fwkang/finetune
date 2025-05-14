@@ -13,7 +13,7 @@ accelerator = Accelerator()
 device = accelerator.device
 
 # 加载数据集
-train_dataset = load_from_disk("whole")
+train_dataset = load_from_disk("train")
 
 # 加载模型和 Tokenizer
 model = AutoModelForCausalLM.from_pretrained("./Qwen/Qwen3-4B", torch_dtype="auto")

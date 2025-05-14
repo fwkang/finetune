@@ -10,8 +10,10 @@ import torch
 
 model = AutoModelForCausalLM.from_pretrained("./Qwen/Qwen3-4B", device_map="auto", torch_dtype=torch.bfloat16)
 tokenizer = AutoTokenizer.from_pretrained("./Qwen/Qwen3-4B", use_fast=False, trust_remote_code=True)
-train_df = pd.read_json('/home/finetune/whole.json')
+train_df = pd.read_json('/home/finetune/data/train.json')
 train_ds = Dataset.from_pandas(train_df)
+test_df = pd.read_json('/home/finetune/data/test.json')
+test_ds = Dataset.from_pandas(test_df)
 
 category = "短信风险类别选项有：是|否"
 prompt = '''在这个任务中，你是一位资深的反诈骗网络安全分析师，你的职责是利用你的专业知识和对网络诈骗行为的深刻理解，从短信文本中识别出可能存在的欺诈行为和风险类别。你的工作对于提前预警潜在的网络诈骗，保护用户财产安全和个人信息不被侵犯具有重要意义。现在，请仔细审查以下短信文本，并运用你的专业判断，给出短信的风险类别判断结果。(%s)'''%category
@@ -41,4 +43,6 @@ def process_func(example):
     return {"input_ids": input_ids, "attention_mask": attention_mask, "labels": labels}  
 
 train_dataset = train_ds.map(process_func, remove_columns=train_ds.column_names)
-train_dataset.save_to_disk("whole")
+train_dataset.save_to_disk("train")
+test_dataset = test_ds.map(process_func, remove_columns=test_ds.column_names)
+test_dataset.save_to_disk("test")
