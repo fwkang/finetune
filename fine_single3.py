@@ -55,10 +55,13 @@ args = TrainingArguments(
     report_to="none",
     remove_unused_columns=False,
     fp16=True,
-    evaluation_strategy="steps",  # 或 "epoch"
-    eval_steps=500,               # 每多少步验证一次（如果 strategy 是 steps）
-    metric_for_best_model="loss", # 可选：使用 loss 作为最佳模型的标准
-    load_best_model_at_end=True,  # 训练结束后加载最优模型
+
+    eval_strategy="steps",            # 每隔一定步数进行评估
+    save_strategy="steps",                  # 与上面一致
+    eval_steps=500,                         # 每 500 步评估一次
+    metric_for_best_model="loss",           # 使用 loss 判断最佳模型
+    load_best_model_at_end=True,            # 训练结束加载最优模型
+    greater_is_better=False,                # loss 越小越好
 )
 
 # SwanLab 日志回调
