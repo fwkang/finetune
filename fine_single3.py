@@ -1,12 +1,14 @@
+# import os
+# os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
+
 from datasets import load_from_disk
 from peft import LoraConfig, TaskType, get_peft_model
 import torch
 from transformers import AutoModelForCausalLM, TrainingArguments, Trainer, DataCollatorForSeq2Seq
 from accelerate import Accelerator
-from swanlab.integration.huggingface import SwanLabCallback
 import swanlab
-import os
 from transformers import AutoTokenizer
+from swanlab.integration.transformers import SwanLabCallback
 
 # 初始化 Accelerator
 accelerator = Accelerator()
@@ -14,20 +16,19 @@ device = accelerator.device
 
 # 加载数据集
 train_dataset = load_from_disk("train")
-test_dataset=load_from_disk("test")
+test_dataset = load_from_disk("test")
 
 # 加载模型和 Tokenizer
 model = AutoModelForCausalLM.from_pretrained(
     "./Qwen/Qwen3-4B", 
     torch_dtype="auto",
-    # device_map="auto"
 )
 tokenizer = AutoTokenizer.from_pretrained("./Qwen/Qwen3-4B", use_fast=False, trust_remote_code=True)
 
 # 增强的LoRA配置
 config = LoraConfig(
     task_type=TaskType.CAUSAL_LM,
-    target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj", "lm_head"],
+    target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
     inference_mode=False,
     r=16,
     lora_alpha=64,
@@ -36,12 +37,28 @@ config = LoraConfig(
 )
 
 model = get_peft_model(model, config)
+
+# 强制设置只有 LoRA 层为可训练
+def mark_only_lora_as_trainable(model):
+    for name, param in model.named_parameters():
+        if "lora_" in name:
+            param.requires_grad = True
+        else:
+            param.requires_grad = False
+
+mark_only_lora_as_trainable(model)
 model.print_trainable_parameters()
 
-# 定义优化的训练参数
+# 设置 use_cache = False 避免 gradient checkpointing 冲突
+model.config.use_cache = False
+
+# 定义优化器，只取可训练参数
+optimizer = torch.optim.AdamW(filter(lambda p: p.requires_grad, model.parameters()), lr=2e-4)
+
+# 定义训练参数
 args = TrainingArguments(
     output_dir="./output/single3-class-30epoch",
-    per_device_train_batch_size=2,
+    per_device_train_batch_size=1,     # 减小 batch size
     gradient_accumulation_steps=8,
     logging_steps=500,
     num_train_epochs=30,
@@ -51,17 +68,16 @@ args = TrainingArguments(
     lr_scheduler_type="cosine",
     weight_decay=0.01,
     save_on_each_node=True,
-    gradient_checkpointing=True,
     report_to="none",
     remove_unused_columns=False,
-    fp16=True,
-
-    eval_strategy="steps",            # 每隔一定步数进行评估
-    save_strategy="steps",                  # 与上面一致
-    eval_steps=500,                         # 每 500 步评估一次
-    metric_for_best_model="loss",           # 使用 loss 判断最佳模型
-    load_best_model_at_end=True,            # 训练结束加载最优模型
-    greater_is_better=False,                # loss 越小越好
+    fp16=True,                        # 先关闭 fp16
+    # bf16=True,                         # 如果使用 A100/H100 可启用
+    eval_strategy="steps",
+    save_strategy="steps",
+    eval_steps=500,
+    metric_for_best_model="loss",
+    load_best_model_at_end=True,
+    greater_is_better=False,
 )
 
 # SwanLab 日志回调
@@ -89,7 +105,7 @@ trainer = Trainer(
     train_dataset=train_dataset,
     data_collator=data_collator,
     callbacks=[swanlab_callback],
-    optimizers=(torch.optim.AdamW(model.parameters(), lr=2e-4), None),
+    optimizers=(optimizer, None),
     eval_dataset=test_dataset,
 )
 
