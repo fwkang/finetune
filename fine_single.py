@@ -16,8 +16,22 @@ device = accelerator.device
 train_dataset = load_from_disk("train")
 
 # 加载模型和 Tokenizer
-model = AutoModelForCausalLM.from_pretrained("./Qwen/Qwen3-4B", torch_dtype="auto")
-tokenizer = AutoTokenizer.from_pretrained("./Qwen/Qwen3-4B", use_fast=False, trust_remote_code=True)
+# model = AutoModelForCausalLM.from_pretrained("./Qwen/Qwen3-4B", torch_dtype="auto")
+# tokenizer = AutoTokenizer.from_pretrained("./Qwen/Qwen3-4B", use_fast=False, trust_remote_code=True)
+
+model = AutoModelForCausalLM.from_pretrained(
+    "./Qwen/Qwen3-4B",
+    torch_dtype=torch.bfloat16,  # 根据硬件决定
+    trust_remote_code=True,
+    device_map="auto"
+)
+model.gradient_checkpointing_enable()
+
+tokenizer = AutoTokenizer.from_pretrained(
+    "./Qwen/Qwen3-4B",
+    use_fast=False,
+    trust_remote_code=True
+)
 
 # LoRA 配置
 config = LoraConfig(
@@ -41,7 +55,7 @@ args = TrainingArguments(
     per_device_train_batch_size=4,
     gradient_accumulation_steps=4,
     logging_steps=2500,
-    num_train_epochs=2,
+    num_train_epochs=20,
     save_steps=2500,
     learning_rate=1e-4,
     save_on_each_node=True,
