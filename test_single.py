@@ -6,7 +6,7 @@ from tqdm import tqdm
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_score, roc_auc_score
+from sklearn.metrics import accuracy_score, confusion_matrix, precision_score, recall_score, f1_score, roc_auc_score
 from matplotlib import rcParams
 
 # 初始化设置
@@ -41,7 +41,7 @@ def map_to_binary(label):
 y_true, y_pred = [], []
 for _, row in tqdm(test_df.iterrows(), total=len(test_df)):
     messages = [
-        {"role": "system", "content": f"请判断以下短信是否存在欺诈风险，直接回答“是”或“否”：{row['文本']}"},
+        {"role": "system", "content": "请判断以下短信是否存在欺诈风险，直接回答“是”或“否”"},
         {"role": "user", "content": row['文本']}
     ]
     response = predict(messages, model, tokenizer)
