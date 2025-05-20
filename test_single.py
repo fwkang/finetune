@@ -16,7 +16,7 @@ rcParams['axes.unicode_minus'] = False
 # 加载模型和分词器
 model = AutoModelForCausalLM.from_pretrained("./Qwen/Qwen3-4B", torch_dtype="auto")
 tokenizer = AutoTokenizer.from_pretrained("./Qwen/Qwen3-4B", use_fast=False, trust_remote_code=True)
-model = PeftModel.from_pretrained(model, "./output/single2-class-30epoch/checkpoint-7500/").to("cuda")
+model = PeftModel.from_pretrained(model, "./output/single2-class-30epoch/checkpoint-2370/").to("cuda")
 
 # 数据加载
 test_df = pd.read_json('eval-400x10.json')
